@@ -616,5 +616,178 @@ createIndex()方法基本语法格式如下所示：
 注意：不会删除系统自动创建的索引
 ```
 
+## 聚合
 
+```json
+下表展示了一些聚合的表达式:
+
+表达式	描述	实例
+$sum	计算总和。	db.mycol.aggregate([{$group : {_id : "$by_user", num_tutorial : {$sum : "$likes"}}}])
+$avg	计算平均值	db.mycol.aggregate([{$group : {_id : "$by_user", num_tutorial : {$avg : "$likes"}}}])
+$min	获取集合中所有文档对应值得最小值。	db.mycol.aggregate([{$group : {_id : "$by_user", num_tutorial : {$min : "$likes"}}}])
+$max	获取集合中所有文档对应值得最大值。	db.mycol.aggregate([{$group : {_id : "$by_user", num_tutorial : {$max : "$likes"}}}])
+$push	在结果文档中插入值到一个数组中。	db.mycol.aggregate([{$group : {_id : "$by_user", url : {$push: "$url"}}}])
+$addToSet	在结果文档中插入值到一个数组中，但不创建副本。	db.mycol.aggregate([{$group : {_id : "$by_user", url : {$addToSet : "$url"}}}])
+$first	根据资源文档的排序获取第一个文档数据。	db.mycol.aggregate([{$group : {_id : "$by_user", first_url : {$first : "$url"}}}])
+$last	根据资源文档的排序获取最后一个文档数据	db.mycol.aggregate([{$group : {_id : "$by_user", last_url : {$last : "$url"}}}])
+```
+
+
+
+### $group
+
+```mysql
+> db.test2.aggregate([{$group:{_id:"$name",count:{$sum:1}}}])
+{ "_id" : "jeffrey", "count" : 2 }
+{ "_id" : "jeffrey2", "count" : 1 }
+{ "_id" : "jeffrey3", "count" : 2 }
+{ "_id" : "jeffrey4", "count" : 1 }
+>
+
+db.test2.aggregate(
+	[
+    	{
+        	$group:{
+        		_id:"$name",
+        		count:{$sum:1},
+        		avgAge:{$avg:"$age"}
+        	}
+        }
+	]
+)
+
+> db.test2.aggregate([{$group:{_id:"$name",count:{$sum:1},avgAge:{$avg:"$age"}}}])
+{ "_id" : "jeffrey", "count" : 2, "avgAge" : 22 }
+{ "_id" : "jeffrey4", "count" : 1, "avgAge" : 32 }
+{ "_id" : "jeffrey2", "count" : 1, "avgAge" : 32 }
+{ "_id" : "jeffrey3", "count" : 2, "avgAge" : 13 }
+>
+```
+
+### $match
+
+```mysql
+> db.test2.aggregate([{$group:{_id:"$name",count:{$sum:1},avgAge:{$avg:"$age"}}},{$match:{avgAge:{$gt:22}}}])
+{ "_id" : "jeffrey2", "count" : 1, "avgAge" : 32 }
+{ "_id" : "jeffrey4", "count" : 1, "avgAge" : 32 }
+>
+```
+
+### $Project
+
+```mysql
+在投影的过程中是可以进行四则远算的：加法（$add）、减法（$subtract）、乘法（$multipy）、除法（$divide）、求模（$mod）
+关系运算：大小比较（"$cmp"）、等于（"$eq"）、大于（"$gt"）、大于等于（"$gte"）、小于（"$le"）、小于等于（"$lte"）、不等于（"$ne"）、判断 null （"$ifNull"），这些返回值都是 boolean 值类型的。
+
+逻辑运算：与（"$and"）、或（"$or"）、非 （"$not"）
+
+字符串操作：连接（"$concat"）、截取（"$substr"）、转小写（"$toLower"）
+
+db.test2.aggregate([{$project:{age:1}}])
+{ "_id" : ObjectId("609779059f03b1598dd46cc8"), "age" : 22 }
+{ "_id" : ObjectId("609779059f03b1598dd46cc9"), "age" : 32 }
+{ "_id" : ObjectId("609779059f03b1598dd46cca"), "age" : 12 }
+{ "_id" : ObjectId("6097857e9f03b1598dd46ccb"), "age" : 22 }
+{ "_id" : ObjectId("6097857e9f03b1598dd46ccc"), "age" : 32 }
+{ "_id" : ObjectId("6097857e9f03b1598dd46ccd"), "age" : 14 }
+> db.test2.aggregate([{$project:{age:0}}])
+{ "_id" : ObjectId("609779059f03b1598dd46cc8"), "sorce" : 12, "name" : "jeffrey" }
+{ "_id" : ObjectId("609779059f03b1598dd46cc9"), "sorce" : 8, "name" : "jeffrey2" }
+{ "_id" : ObjectId("609779059f03b1598dd46cca"), "sorce" : 2, "name" : "jeffrey3" }
+{ "_id" : ObjectId("6097857e9f03b1598dd46ccb"), "sorce" : 13, "name" : "jeffrey" }
+{ "_id" : ObjectId("6097857e9f03b1598dd46ccc"), "sorce" : 8, "name" : "jeffrey4" }
+{ "_id" : ObjectId("6097857e9f03b1598dd46ccd"), "sorce" : 2, "name" : "jeffrey3" }
+>
+
+
+ db.test2.aggregate([{$project:{age:1,ageBoolean:{$gt:["$age",22]}}}])
+{ "_id" : ObjectId("609779059f03b1598dd46cc8"), "age" : 22, "ageBoolean" : false }
+{ "_id" : ObjectId("609779059f03b1598dd46cc9"), "age" : 32, "ageBoolean" : true }
+{ "_id" : ObjectId("609779059f03b1598dd46cca"), "age" : 12, "ageBoolean" : false }
+{ "_id" : ObjectId("6097857e9f03b1598dd46ccb"), "age" : 22, "ageBoolean" : false }
+{ "_id" : ObjectId("6097857e9f03b1598dd46ccc"), "age" : 32, "ageBoolean" : true }
+{ "_id" : ObjectId("6097857e9f03b1598dd46ccd"), "age" : 14, "ageBoolean" : false }
+>
+
+db.test2.aggregate([{$project:{age:1,ageBoolean:{$gt:["$age",22]},concat_name:{$concat:["java-","$name"]}}}])
+{ "_id" : ObjectId("609779059f03b1598dd46cc8"), "age" : 22, "ageBoolean" : false, "concat_name" : "java-jeffrey" }
+{ "_id" : ObjectId("609779059f03b1598dd46cc9"), "age" : 32, "ageBoolean" : true, "concat_name" : "java-jeffrey2" }
+{ "_id" : ObjectId("609779059f03b1598dd46cca"), "age" : 12, "ageBoolean" : false, "concat_name" : "java-jeffrey3" }
+{ "_id" : ObjectId("6097857e9f03b1598dd46ccb"), "age" : 22, "ageBoolean" : false, "concat_name" : "java-jeffrey" }
+{ "_id" : ObjectId("6097857e9f03b1598dd46ccc"), "age" : 32, "ageBoolean" : true, "concat_name" : "java-jeffrey4" }
+{ "_id" : ObjectId("6097857e9f03b1598dd46ccd"), "age" : 14, "ageBoolean" : false, "concat_name" : "java-jeffrey3" }
+>
+
+> db.test2.aggregate([{$project:{age:1,ageBoolean:{$gt:["$age",22]},substr_name:{$substr:["$name",0,3]}}}])
+{ "_id" : ObjectId("609779059f03b1598dd46cc8"), "age" : 22, "ageBoolean" : false, "substr_name" : "jef" }
+{ "_id" : ObjectId("609779059f03b1598dd46cc9"), "age" : 32, "ageBoolean" : true, "substr_name" : "jef" }
+{ "_id" : ObjectId("609779059f03b1598dd46cca"), "age" : 12, "ageBoolean" : false, "substr_name" : "jef" }
+{ "_id" : ObjectId("6097857e9f03b1598dd46ccb"), "age" : 22, "ageBoolean" : false, "substr_name" : "jef" }
+{ "_id" : ObjectId("6097857e9f03b1598dd46ccc"), "age" : 32, "ageBoolean" : true, "substr_name" : "jef" }
+{ "_id" : ObjectId("6097857e9f03b1598dd46ccd"), "age" : 14, "ageBoolean" : false, "substr_name" : "jef" }
+>
+准备测试的数据
+db.test3.insertMany([
+... { "_id" : 1, "item" : "abc", "price" : 10, "quantity" : 2, "date" : ISODate("2014-03-01T08:00:00Z") },
+... { "_id" : 2, "item" : "jkl", "price" : 20, "quantity" : 1, "date" : ISODate("2014-03-01T09:00:00Z") },
+... { "_id" : 3, "item" : "xyz", "price" : 5, "quantity" : 10, "date" : ISODate("2014-03-15T09:00:00Z") },
+... { "_id" : 4, "item" : "xyz", "price" : 5, "quantity" : 20, "date" : ISODate("2014-04-04T11:21:39.736Z") },
+... { "_id" : 5, "item" : "abc", "price" : 10, "quantity" : 10, "date" : ISODate("2014-04-04T21:23:13.331Z") }
+... ]);
+
+db.test3.aggregate([{ $project : 
+    { _id: 0, item : 1, price: "$price", dateInfo: { day: { $dayOfYear: "$date"}, year: { $year: "$date" } } } 
+}]);
+
+{ "item" : "abc", "price" : 10, "dateInfo" : { "day" : 60, "year" : 2014 } }
+{ "item" : "jkl", "price" : 20, "dateInfo" : { "day" : 60, "year" : 2014 } }
+{ "item" : "xyz", "price" : 5, "dateInfo" : { "day" : 74, "year" : 2014 } }
+{ "item" : "xyz", "price" : 5, "dateInfo" : { "day" : 94, "year" : 2014 } }
+{ "item" : "abc", "price" : 10, "dateInfo" : { "day" : 94, "year" : 2014 } }
+>
+
+```
+
+### $unwind
+
+```
+准备数据
+db.test4.insert({mark:"aa","conments":[
+      {
+          "author":"Mark",
+          "date":ISODate("2014-01-01T17:52:04.148Z"),
+          "text":"Nice post"
+      },
+      {
+          "author":"Bill",
+          "date":ISODate("2014-01-01T17:52:04.148Z"),
+          "text":"I agree"
+      }
+   ]})
+   
+ db.test4.aggregate([{$unwind:"$conments"}])
+ 
+ > db.test4.aggregate([{$unwind:"$conments"}]).pretty()
+{
+        "_id" : ObjectId("6097a87e9f03b1598dd46cce"),
+        "mark" : "aa",
+        "conments" : {
+                "author" : "Mark",
+                "date" : ISODate("2014-01-01T17:52:04.148Z"),
+                "text" : "Nice post"
+        }
+}
+{
+        "_id" : ObjectId("6097a87e9f03b1598dd46cce"),
+        "mark" : "aa",
+        "conments" : {
+                "author" : "Bill",
+                "date" : ISODate("2014-01-01T17:52:04.148Z"),
+                "text" : "I agree"
+        }
+}
+>
+   
+   
+```
 
